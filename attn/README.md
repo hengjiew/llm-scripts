@@ -9,7 +9,7 @@ vLLM flash-attention 2 relaxes this requirement and allows the block size to be 
 ```
 pip install vllm_flash_attn
 ```
-- [flashinfer](git@github.com:flashinfer-ai/flashinfer.git)
+- [flashinfer](https://github.com/flashinfer-ai/flashinfer)
 ```
 pip install flashinfer -i https://flashinfer.ai/whl/cu124/torch2.4
 ```
