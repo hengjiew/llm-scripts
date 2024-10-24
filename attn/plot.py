@@ -17,7 +17,7 @@ def plot(batch_size, df_batch, name):
 
     ax1.set_xlabel('Seq Length')
     ax1.set_ylabel('Latency (µs)')
-    ax1.set_title('Batch Size 1')
+    ax1.set_title(f'Batch Size {batch_size}')
     ax1.legend(loc='upper left')
 
     ax1.set_xticks(index)  # Setting the tick positions first
