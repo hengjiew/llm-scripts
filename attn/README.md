@@ -14,10 +14,12 @@ pip install vllm_flash_attn
 pip install flashinfer -i https://flashinfer.ai/whl/cu124/torch2.4
 ```
 ## FP16/BF16
+vllm_flash_attn-2.6.2 vs flashinfer-0.1.6+cu124torch2.4
 ### H100 SXM 80GB
-vllm_flash_attn-2.6.2 vs flashinfer-0.1.6+cu124torch2.4_h100
-[flashattn2.6.2_vs_flashinfer0.1.6](flashattn2.6.2_vs_flashinfer0.1.6)
+[flashattn2.6.2_vs_flashinfer0.1.6](flashattn2.6.2_vs_flashinfer0.1.6_h100_float16)
 
+### A100 SXM 40GB
+[flashattn2.6.2_vs_flashinfer0.1.6](flashattn2.6.2_vs_flashinfer0.1.6_a100_float16)
 ## Notes
 - Cannot use FlashAttention-2 backend for Volta and Turing GPUs.
 - Cannot use FlashAttention-2 backend for dtype other than torch.float16 or torch.bfloat16.
