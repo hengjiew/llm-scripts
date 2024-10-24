@@ -7,8 +7,7 @@ import numpy as np
 import flashinfer
 import torch
 import argparse
-# from vllm_flash_attn import flash_attn_with_kvcache
-from flash_attn import flash_attn_with_kvcache
+from vllm_flash_attn import flash_attn_with_kvcache
 
 NUM_BLOCKS = 32768
 # NUM_BLOCKS = 2048

@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import argparse
 
-def plot(batch_size, df_batch, name):
+def plot(batch_size, df_batch, dir, file):
     fig = plt.figure()  # Create a new figure for each call
     ax1 = fig.add_subplot(111)
 
@@ -32,17 +32,21 @@ def plot(batch_size, df_batch, name):
     ax1.legend(loc='upper left')
     ax2.legend(loc='upper right')
 
-    plt.savefig(Path(name)/(f"{name}_bs{batch_size}.png"))
+    plt.savefig(Path(dir)/(f"{file}_bs{batch_size}.png"))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot the benchmark results.")
-    parser.add_argument("--name", type=str, default="flashattn2.6.2_vs_flashinfer0.1.6", help="Name of the benchmark")
+    parser.add_argument("--dir", type=str, default="flashattn2.6.2_vs_flashinfer0.1.6_h100_float16", help="Name of the benchmark")
+    parser.add_argument("--file", type=str, default="flashattn2.6.2_vs_flashinfer0.1.6", help="Name of the benchmark")
     args = parser.parse_args()
     print(args)
-    df = pd.read_csv(Path(args.name)/(args.name+'.csv'))
+    df = pd.read_csv(Path(args.dir)/(args.file+'.csv'))
     # Index(['Batch Size', 'Seq Length', 'flashattn', 'flashinfer', 'Speedup'], dtype='object')
     for batch_size in df["Batch Size"].unique():
         df_batch = df[df['Batch Size'] == batch_size]
-        plot(batch_size, df_batch, args.name)
+        plot(batch_size, df_batch, args.dir, args.file)
 
+
+# python plot.py --dir flashattn2.6.2_vs_flashinfer0.1.6_h100_float16
+# python plot.py --dir flashattn2.6.2_vs_flashinfer0.1.6_a100_float16

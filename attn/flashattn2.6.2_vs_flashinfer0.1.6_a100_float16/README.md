@@ -1,4 +1,4 @@
-# H100 flash-attention 2.6.2 vs flashinfer 0.1.6
+# A100 flash-attention 2.6.2 vs flashinfer 0.1.6
 
 ```
 python bench_attn.py --backend all --seq-len 1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768 --batch-size 1 2 4 8 16 32 64 128 256 --dump-csv
