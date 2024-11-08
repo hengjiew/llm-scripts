@@ -33,6 +33,7 @@ def bench(
     backend: str,
     num_seqs: int,
     seq_len: int,
+    cache_len: int,
     num_query_heads: int,
     num_kv_heads: int,
     head_size: int,
@@ -57,7 +58,7 @@ def bench(
     seq_lens = torch.tensor(seq_lens, dtype=torch.int, device=device)
 
     # Create the block tables.
-    max_num_blocks_per_seq = (max_seq_len + block_size - 1) // block_size
+    max_num_blocks_per_seq = (cache_len + block_size - 1) // block_size
     block_tables_lst: List[List[int]] = []
     for _ in range(num_seqs):
         block_table = [
@@ -67,13 +68,16 @@ def bench(
 
     block_tables = torch.tensor(block_tables_lst, dtype=torch.int, device=device)
 
+    # kv cache
     key_value_cache = torch.randn(
         NUM_BLOCKS, 2, block_size, num_kv_heads, head_size, dtype=dtype, device=device
     )
     key_cache = key_value_cache[:, 0, :, :, :].squeeze(1)
     value_cache = key_value_cache[:, 1, :, :, :].squeeze(1)
 
-    kv_lens_tensor = seq_lens
+    # kv cachen length
+    kv_lens = [cache_len for _ in range(num_seqs)]
+    kv_lens_tensor = torch.tensor(kv_lens, dtype=torch.int, device=device)
 
     if backend == "flashinfer":
         kv_indptr = [0]
@@ -81,7 +85,7 @@ def bench(
         kv_last_page_lens = []
         for i in range(num_seqs):
             assert seq_len > 0
-            num_blocks = (seq_len + block_size - 1) // block_size
+            num_blocks = (cache_len + block_size - 1) // block_size
             kv_indices.extend(block_tables[i, :num_blocks])
             kv_indptr.append(kv_indptr[-1] + num_blocks)
             kv_last_page_len = seq_len % block_size
@@ -167,6 +171,7 @@ def main(
     backend: str,
     num_seqs_list: List[int],
     seq_len_list: List[int],
+    cache_len_list: List[int],
     num_query_heads: int,
     num_kv_heads: int,
     head_size: int,
@@ -181,52 +186,55 @@ def main(
     results = []
     for num_seqs in num_seqs_list:
         for seq_len in seq_len_list:
-            t1, t2 = None, None
-            if backend in ["flashattn", "all"]:
-                t1 = bench(
-                    backend="flashattn",
-                    num_seqs=num_seqs,
-                    seq_len=seq_len,
-                    num_query_heads=num_query_heads,
-                    num_kv_heads=num_kv_heads,
-                    head_size=head_size,
-                    block_size=block_size,
-                    dtype=dtype,
-                    seed=seed,
-                    do_profile=do_profile,
-                    device=device,
-                    kv_cache_dtype=kv_cache_dtype,
-                )
-                print(f"Flashattn kernel running time: {t1 * 1000000:.3f} us")
+            for cache_len in cache_len_list:
+                t1, t2 = None, None
+                if backend in ["flashattn", "all"]:
+                    t1 = bench(
+                        backend="flashattn",
+                        num_seqs=num_seqs,
+                        seq_len=seq_len,
+                        cache_len=cache_len,
+                        num_query_heads=num_query_heads,
+                        num_kv_heads=num_kv_heads,
+                        head_size=head_size,
+                        block_size=block_size,
+                        dtype=dtype,
+                        seed=seed,
+                        do_profile=do_profile,
+                        device=device,
+                        kv_cache_dtype=kv_cache_dtype,
+                    )
+                    print(f"Flashattn kernel running time: {t1 * 1000000:.3f} us")
 
-            gc.collect()
-            torch.cuda.empty_cache()
+                gc.collect()
+                torch.cuda.empty_cache()
 
-            if backend in ["flashinfer", "all"]:
-                t2 = bench(
-                    backend="flashinfer",
-                    num_seqs=num_seqs,
-                    seq_len=seq_len,
-                    num_query_heads=num_query_heads,
-                    num_kv_heads=num_kv_heads,
-                    head_size=head_size,
-                    block_size=block_size,
-                    dtype=dtype,
-                    seed=seed,
-                    do_profile=do_profile,
-                    device=device,
-                    kv_cache_dtype=kv_cache_dtype,
-                )
-                print(f"Flashinfer kernel running time: {t2 * 1000000:.3f} us")
+                if backend in ["flashinfer", "all"]:
+                    t2 = bench(
+                        backend="flashinfer",
+                        num_seqs=num_seqs,
+                        seq_len=seq_len,
+                        cache_len=cache_len,
+                        num_query_heads=num_query_heads,
+                        num_kv_heads=num_kv_heads,
+                        head_size=head_size,
+                        block_size=block_size,
+                        dtype=dtype,
+                        seed=seed,
+                        do_profile=do_profile,
+                        device=device,
+                        kv_cache_dtype=kv_cache_dtype,
+                    )
+                    print(f"Flashinfer kernel running time: {t2 * 1000000:.3f} us")
 
-                line = [
-                    num_seqs,
-                    seq_len,
-                    t1 * 1000000 if t1 else -1,
-                    t2 * 1000000 if t2 else -1,
-                    t1/t2 if t1 and t2 else -1,
-                ]
-                results.append(line)
+                    line = [
+                        num_seqs,
+                        seq_len,
+                        t1 * 1000000 if t1 else -1,
+                        t2 * 1000000 if t2 else -1,
+                        t1/t2 if t1 and t2 else -1,
+                    ]
+                    results.append(line)
     if dump_csv:
         # Write the dictionary to a CSV file
         with open(CSV_FILE, mode="w", newline="") as file:
@@ -240,6 +248,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmark the paged attention kernel.")
     parser.add_argument("--batch-sizes", nargs="+", type=int, default=[1])
     parser.add_argument("--seq-lens", nargs="+", type=int, default=[4096])
+    parser.add_argument("--cache-lens", nargs="+", type=int, default=[4096])
     parser.add_argument("--num-query-heads", type=int, default=64)
     parser.add_argument("--num-kv-heads", type=int, default=8)
     parser.add_argument(
@@ -279,6 +288,7 @@ if __name__ == "__main__":
         backend=args.backend,
         num_seqs_list=args.batch_sizes,
         seq_len_list=args.seq_lens,
+        cache_len_list=args.cache_lens,
         num_query_heads=args.num_query_heads,
         num_kv_heads=args.num_kv_heads,
         head_size=args.head_size,
